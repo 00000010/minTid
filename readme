@@ -1,0 +1,7 @@
+WHAT: A productivity command-line application for encouraging habits, 
+WHY: Need something to track productivity while forming habits using positive
+reenforcement.
+HOW: Using ncurses, in C.
+
+Documentation journal:
+

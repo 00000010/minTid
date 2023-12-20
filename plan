@@ -1,0 +1,23 @@
+Plan
+The purpose of this file is to document what I want this application to give me.
+
+I want it to be able to answer:
+- How am I progressing toward my short-term, medium-term, long-term goals?
+- How are my habits progressing? How long have I sustained these habits?
+- What have been my most productive days? Why?
+- What have been my least productive days? Why?
+- What are things I usually do on bad productive days?
+- What are things I usually do on good productive day?
+- How have my goals changed?
+- How much time do I spend on applications?
+
+General stuff:
+- "choose a character that will keep you accountable"
+  - I really don't know a better way to word this
+
+Currently working on:
+Choose your own character
+  - Should be brought up once and if user can choose not to choose (store choice in config file, along with other application settings)
+
+Tasks (things that need to be done), habits (things that must be done or not done consistently), promises (things you agree to do by a certain time), goals (things you wish to complete in the long-term)
+
