@@ -21,3 +21,7 @@ Choose your own character
 
 Tasks (things that need to be done), habits (things that must be done or not done consistently), promises (things you agree to do by a certain time), goals (things you wish to complete in the long-term)
 
+Notes:
+Process:
+- Config file read
+  - Store in struct accessible through getter/setter
