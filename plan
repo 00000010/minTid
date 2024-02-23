@@ -11,6 +11,8 @@ I want it to be able to answer:
 - How have my goals changed?
 - How much time do I spend on applications?
 
+STATISTICS
+
 General stuff:
 - "choose a character that will keep you accountable"
   - I really don't know a better way to word this
@@ -19,9 +21,96 @@ Currently working on:
 Choose your own character
   - Should be brought up once and if user can choose not to choose (store choice in config file, along with other application settings)
 
-Tasks (things that need to be done), habits (things that must be done or not done consistently), promises (things you agree to do by a certain time), goals (things you wish to complete in the long-term)
+Tasks: things that need to be done
+- components: title, description, why, blockers, estimated time
+- can be directly worked on
+- examples: fold laundry, do exercise part 1A
+Habits: things that must be done or not done consistently
+- title, description, why, frequency, start date, highest streak, streak, average time
+- habits must be broken into tasks to be worked on
+  - making a habit will automatically create tasks for you
+- cannot be directly worked on
+- when these tasks are worked on, time is recorded to get an idea of the average amount of time it takes to do it
+  - the idea is that often it is less than expected
+- examples: do laundry on Tuesday, exercise, brush teeth
+Promises: things you agree to do by a certain time
+- is this necessary?
+Goals: things you wish to complete in the long-term (projects, for example)
+- title, description, why
+- no end date (setting an end date may encourage procrastination; whether or not I meet the end date is irrelevant if I am making continuous progress regardless)
+- cannot be directly worked on
+- work on it by doing tasks related to it
+- examples: earn Security+ certification
+Ideas:
+- the most abstract component
+- title, description, why
+- need to be turned into goals to be concrete
+Distractions: things that you find you waste too much time on
+- title, description, why is it distracting
+- examples: browsing, reading
+
+Focus on the WHY. Why do I want to do this ("have to" is not an option)?
 
 Notes:
 Process:
 - Config file read
   - Store in struct accessible through getter/setter
+
+TODO:
+- Load config
+- Resizing
+- Command mode
+  - Autocomplete
+- Implement character selection
+
+
+
+Outine:
++----+----------------------------+-------+
+|cur |      char output           | char  |
+|task|        display             |  art  |
++----+----------------------------+-------+
+|     |       |         |         |rewards|
+|     |       |         |         | store |
+|     |       |         |         |       |
+|     |       |         |         |       |
++-----------------------------------------+
+|Basic statistics                         |
++-----------------------------------------+
+|Accomplishments                          |
++-----------------------------------------+
+|Text bar                                 |
++-----------------------------------------+
+
+cur task: current task and how much time you have currently worked on it
+char output display: messages from char, including general output
+char art: chosen char art
+Basic statistics: Date/time,
+Accomplishments: Checkin streak, total points, highest point total day, points accumulated today, 
+Rewards store:
+
+Command mode:
+add
+  task
+  habit
+  promise
+  goal
+  reward
+remove
+  task
+  habit
+  promise
+  goal
+  reward
+edit
+  task
+  habit
+  promise
+  goal
+  reward
+help
+  task
+  habit
+  promise
+  goal
+  reward

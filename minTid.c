@@ -8,15 +8,15 @@
 #include "constants.h"
 
 WINDOW* create_main_win() {
-  return show_win(LINES - 4, COLS - 2, 1, 1);
+  return show_win(LINES - 3, COLS, 0, 0);
 }
 
 WINDOW* create_bar_win() {
-  return show_win(3, COLS - 2, LINES - 3, 1);
+  return show_win(3, COLS, LINES - 3, 0);
 }
 
 WINDOW* create_bar_text_win() {
-  return show_win(1, COLS - 4, LINES - 2, 2);
+  return show_win(1, COLS - 2, LINES - 2, 1);
 }
 
 /// Print text in the bar
@@ -62,11 +62,12 @@ char* get_mtChar_art() {
   return buffer;
 }
 
-void show_mtChar_win() {
+void show_mtChars() {
   long length;
+  printw("Choose character screen\n");
 //  WINDOW* w = show_win(0,0,0,0);
 
-  char* art_buffer = get_mtChar_art();
+//  char* art_buffer = get_mtChar_art();
 //  if (f) {
 //    int seek_err = fseek(f, 0, SEEK_END);
 //    // TODO: Error validation
@@ -83,8 +84,8 @@ void show_mtChar_win() {
 //    }
 //    fclose(f);
 //  }
-  if (art_buffer) {
-    char c = art_buffer[0];
+//  if (art_buffer) {
+//    char c = art_buffer[0];
 //     while (c) {
 //       char* character_art = 
 //     }
@@ -92,12 +93,12 @@ void show_mtChar_win() {
 //       wprintw(w, "First char: %.256s", &(buffer[]));
 //       wrefresh(w);
 //     }
-  }
+//  }
   return;
 }
 
 void pick_character(mtConfig* config) {
-  show_mtChar_win();
+  show_mtChars();
   return;
 }
 
@@ -147,9 +148,8 @@ WINDOW* show_win(int nlines, int ncols, int begin_y, int begin_x) {
   return win;
 }
 
-void loadConfig(mtConfig* config, WINDOW* bar_win) {
+void loadConfig(mtConfig* config) {
   // Read config
-  config = malloc(sizeof(mtConfig));
   FILE* f = fopen(CONFIG_LOCATION, "rb");
   char key[MAX_LINE_LENGTH];
   int value;
@@ -157,9 +157,9 @@ void loadConfig(mtConfig* config, WINDOW* bar_win) {
   if (strcmp(key, "mtChosenChar") == 0) {
     config->mtChosenChar = value;
   } else {
-    wprintw(bar_win, "ERROR: unknown key \"%s\" in config", key);
-    char c = wgetch(bar_win);
-    ungetch(c);
+//    wprintw(bar_win, "ERROR: unknown key \"%s\" in config", key);
+//    char c = wgetch(bar_win);
+//    ungetch(c);
   }
   fclose(f);
 }
@@ -182,6 +182,19 @@ int main() {
 
   curs_set(0); // Make cursor invisible (for now)
 
+  mtConfig* config = malloc(sizeof(mtConfig));
+  loadConfig(config);
+
+  if (config->mtChosenChar == -1) {
+    pick_character(config);
+    getch();
+    erase();
+  } else {
+    endwin();
+    printf("mtChosenChar: %i\n", config->mtChosenChar);
+    exit(EXIT_SUCCESS);
+  }
+
   WINDOW* bar_win = create_bar_win();
   WINDOW* bar_text_win = create_bar_text_win();
   WINDOW* main_win = create_main_win();
@@ -199,13 +212,6 @@ int main() {
     wrefresh(bar_win);
     wrefresh(bar_text_win);
   }
-
-//  mtConfig config;
-//  loadConfig(&config, bar_win);
-//
-//  if (config.mtChosenChar == -1) {
-//    pick_character(&config);
-//  }
 
   // Get input
 //  c = getch();
