@@ -5,7 +5,7 @@
 #include <unistd.h>
 
 #include "minTid.h"
-#include "constants.h"
+#include "windows.h"
 
 WINDOW* create_main_win() {
   return show_win(LINES - 3, COLS, 0, 0);
@@ -20,37 +20,34 @@ WINDOW* create_bar_text_win() {
 }
 
 /// Print text in the bar
-char* print_bar_win(WINDOW* bar_win, char* string, int expect_input) {
+void print_bar_win(WINDOW* bar_win, char* string, int expect_input) {
   wclear(bar_win);
-//  wrefresh(bar_win);
   mvwprintw(bar_win, 0, 0, string);
   wrefresh(bar_win);
-
-//  box(bar_win, 0, 0);
-//  wrefresh(bar_win);
-//  if (expect_input) {
-//    char* response = "";
-//    wgetnstr(bar_win, response, MAX_LINE_LENGTH);
-//    return response;
-//  }
-  return NULL; 
+  return; 
 }
 
 char* get_mtChar_art() {
-  FILE* f = fopen("./config/asciiart.tx", "rb");
+  FILE* f = fopen(ART_LOCATION, "rb");
   if (!f) {
-    exit(1);
+    // TODO: check logic, cleanup this mess
+    char error_string[MAX_ERROR_STRING_LEN];
+    char* error_message = "ERROR: unable to open configuration file ";
+    if (strlen(error_message) + 1 <= sizeof(error_string)) {
+      strncat(error_string, error_message, MAX_ERROR_STRING_LEN);
+      if (strlen(error_message) + strlen(ART_LOCATION) + 1 <= MAX_ERROR_STRING_LEN) {
+        strncat(error_string, ART_LOCATION, MAX_ERROR_STRING_LEN - strlen(error_message - 1));
+      }
+      exit_prog(EXIT_FAILURE, error_string);
+    } else {
+      exit_prog(EXIT_FAILURE, error_message);
+    }
   }
   char* buffer = 0;
-  mtChar* mtChars = malloc(sizeof(mtChar));
-  WINDOW* prompt_win = show_win(1, COLS, LINES - 1, 0);
-  if (!mtChars) {
-    wprintw(prompt_win, "ERROR: unable to allocate memory");
-    return NULL;
-  } else {
-    wprintw(prompt_win, "Allocated memory");
+  mtChar* mtC = malloc(sizeof(mtChar));
+  if (!mtC) {
+    exit_prog(EXIT_FAILURE, "ERROR: unable to allocate memory");
   }
-  wrefresh(prompt_win);
 
   char c;
   if (f) {
@@ -64,10 +61,9 @@ char* get_mtChar_art() {
 
 void show_mtChars() {
   long length;
-  printw("Choose character screen\n");
-//  WINDOW* w = show_win(0,0,0,0);
+  mvprintw(1, 1, "Welcome to minTid! It looks like this is your first time here. Select your maître d'hôtel to get started.\n");
 
-//  char* art_buffer = get_mtChar_art();
+  char* art_buffer = get_mtChar_art();
 //  if (f) {
 //    int seek_err = fseek(f, 0, SEEK_END);
 //    // TODO: Error validation
@@ -97,8 +93,9 @@ void show_mtChars() {
   return;
 }
 
-void pick_character(mtConfig* config) {
+void pick_character(mtConfig* config, WINDOW* win) {
   show_mtChars();
+  char c = wgetch(win);
   return;
 }
 
@@ -108,13 +105,13 @@ void handle_char(char c, WINDOW* bar_win) {
     case 'q':
     {
       char response;
-      curs_set(1);
+      curs_set(1);         // Show cursor
       nodelay(bar_win, 0); // Make input blocking
       print_bar_win(bar_win, "Quit minTid (y/n)? ", 0);
       response = wgetch(bar_win);
       if (response == 'Y' || response == 'y') {
-        destroy_win(bar_win, 0); // TODO: Destroy main window too
-        exit_prog();
+        destroy_win(bar_win, 0); // TODO: memory leak; destroy other windows too
+        exit_prog(EXIT_SUCCESS, NULL);
       }
       break;
     }
@@ -130,8 +127,8 @@ void handle_char(char c, WINDOW* bar_win) {
     default:
       break;
   }
-  curs_set(0);
-  nodelay(bar_win, 1);
+  curs_set(0);         // Hide cursor
+  nodelay(bar_win, 1); // Make input non-blocking
 }
 
 /// Clear the window of text (if indicated) and free the memory associated with it.
@@ -149,13 +146,19 @@ WINDOW* show_win(int nlines, int ncols, int begin_y, int begin_x) {
 }
 
 void loadConfig(mtConfig* config) {
+  // Load default values
+  config->mtChosenChar = DEFAULT_MTCHOSENCHAR;
+  config->lastCheckin = DEFAULT_LASTCHECKIN;
+
   // Read config
   FILE* f = fopen(CONFIG_LOCATION, "rb");
   char key[MAX_LINE_LENGTH];
   int value;
-  fscanf(f, "%s %i\n", &key[0], &value);
+  fscanf(f, "%s %i\n", &key[0], &value); // TODO: unsafe; fix
   if (strcmp(key, "mtChosenChar") == 0) {
     config->mtChosenChar = value;
+  } else if (strcmp(key, "lastCheckin")){
+    config->lastCheckin = value;  
   } else {
 //    wprintw(bar_win, "ERROR: unknown key \"%s\" in config", key);
 //    char c = wgetch(bar_win);
@@ -164,18 +167,22 @@ void loadConfig(mtConfig* config) {
   fclose(f);
 }
 
-void exit_prog() {
+void exit_prog(int status, char* status_string) {
+  delete_windows();
   endwin();
-  exit(EXIT_SUCCESS);
+  if (status_string) {
+    printf("%s", status_string);
+  }
+  exit(status);
 }
 
 int main() {
   char c = ERR;
   setlocale(LC_ALL, ""); // set the locale for curses to native
 
-  initscr(); // initialize the curses library
-  cbreak();  // character at a time
-  noecho();  // no printing to screen when user types in
+  WINDOW* first_win = initscr(); // initialize the curses library
+  cbreak();                      // character at a time
+  noecho();                      // no printing to screen when user types in
 
   intrflush(stdscr, FALSE); // do not flush on interrupt key press (so ncurses knows what's on screen)
   keypad(stdscr, TRUE);     // treat function keys specially
@@ -186,14 +193,11 @@ int main() {
   loadConfig(config);
 
   if (config->mtChosenChar == -1) {
-    pick_character(config);
-    getch();
+    pick_character(config, first_win);
     erase();
-  } else {
-    endwin();
-    printf("mtChosenChar: %i\n", config->mtChosenChar);
-    exit(EXIT_SUCCESS);
   }
+
+  initialize_windows();
 
   WINDOW* bar_win = create_bar_win();
   WINDOW* bar_text_win = create_bar_text_win();
@@ -225,6 +229,6 @@ int main() {
   delwin(bar_win);
   delwin(bar_text_win);
   delwin(main_win);
-  exit_prog();
+  exit_prog(EXIT_SUCCESS, NULL);
   return 0;
 }

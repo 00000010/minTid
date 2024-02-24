@@ -1,4 +1,15 @@
-all: minTid
+CC = gcc
+CFLAGS = -Wall -pedantic -lncurses
 
-minTid: minTid.c
-	cc minTid.c -pedantic -Wall -lncurses -o minTid
+progName := minTid
+
+all: $(progName)
+
+$(progName): *.o
+	$(CC) $^ $(CFLAGS) -o $@
+
+%.o: %.c
+	$(CC) -c $^
+
+clean:
+	echo $(progName) 

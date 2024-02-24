@@ -1,2 +1,3 @@
 mtChosenChar -1
+lastCheckin 0
 
