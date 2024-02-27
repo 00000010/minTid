@@ -27,32 +27,102 @@ void print_bar_win(WINDOW* bar_win, char* string, int expect_input) {
   return; 
 }
 
+int calculate_profile_char_count(int profile_char_count, int width, int height, int output_dim) {
+  int count = 0;
+  count = output_dim / 2 - height / 2;
+  count += (output_dim / 2 + width / 2) * height;
+  return count;
+}
+
+// Concatenates src_string to dest_string if safe
+// Does not truncate if failed
+int safe_strcat(char* dest_string, char* src_string) {
+  int valid = 0;
+  if (strlen(src_string) + 1 <= sizeof(dest_string) - strlen(dest_string)) {
+    strncat(dest_string, src_string, sizeof(dest_string) - strlen(dest_string) - 1);
+    valid = 1;
+  }
+  return valid;
+}
+
+char* create_piece_from_buffer(char* buffer, int profile_char_count, int width, int height, int output_dim) {
+  char* piece = malloc(calculate_profile_char_count(profile_char_count, width, height, output_dim));
+  for (int i = 0; i < height; i++) {
+    strcpy(piece, "\n");
+  }
+  return piece;
+}
+
+void check_allocation(void* allocation) {
+  if (!allocation) {
+    exit_prog(EXIT_FAILURE, "ERROR: unable to allocate memory");
+  }
+  return;
+}
+
 char* get_mtChar_art() {
   FILE* f = fopen(ART_LOCATION, "rb");
   if (!f) {
-    // TODO: check logic, cleanup this mess
-    char error_string[MAX_ERROR_STRING_LEN];
-    char* error_message = "ERROR: unable to open configuration file ";
-    if (strlen(error_message) + 1 <= sizeof(error_string)) {
-      strncat(error_string, error_message, MAX_ERROR_STRING_LEN);
-      if (strlen(error_message) + strlen(ART_LOCATION) + 1 <= MAX_ERROR_STRING_LEN) {
-        strncat(error_string, ART_LOCATION, MAX_ERROR_STRING_LEN - strlen(error_message - 1));
-      }
+    char* error_message = "ERROR: unable to open ascii art file ";
+    int space = strlen(error_message) + strlen(ART_LOCATION) + 1;
+    char error_string[space];
+    strlcpy(error_string, error_message, space);
+    if (safe_strcat(error_string, ART_LOCATION)) {
       exit_prog(EXIT_FAILURE, error_string);
     } else {
       exit_prog(EXIT_FAILURE, error_message);
     }
   }
-  char* buffer = 0;
+  char* buffer = malloc(INIT_PROFILE_CHAR_LEN);
   mtChar* mtC = malloc(sizeof(mtChar));
-  if (!mtC) {
-    exit_prog(EXIT_FAILURE, "ERROR: unable to allocate memory");
-  }
+  check_allocation(mtC);
 
-  char c;
-  if (f) {
-    while ((c = getc(f)) != EOF) {
-      
+  char c = getc(f);
+  int profile_length = 0;
+  int profile_height = 0;
+  int i = 0;
+  int prev_char_newline = 0;
+  int profile_char_count = 0;
+  mtChar* mtC_p = mtC;
+  mtC_p->maxWidth = 0;
+  mtC_p->maxHeight = 0;
+  mtC_p->next = NULL;
+  while (c != EOF) {
+    while (c == '\n') {
+      if (i == 0) {
+        c = getc(f);
+        continue;
+      }
+      if (!prev_char_newline) {
+        mtC_p->maxHeight++;
+        prev_char_newline = 1;
+      } else {
+        i = 0;
+        mtC_p->maxHeight--;
+        mtC_p->piece = create_piece_from_buffer(buffer, profile_char_count, mtC_p->maxWidth, mtC_p->maxHeight, PROFILE_OUTPUT_DIM);
+//        mtC_p->piece = buffer; // TODO: wrong; position line_buffer correctly in piece
+        mtC_p->next = malloc(sizeof(mtChar));
+        mtC_p = mtC_p->next;
+        mtC_p->maxWidth = 0;
+        mtC_p->maxHeight = 0;
+        profile_char_count = 0;
+      }
+    }
+    if (c != EOF) {
+      profile_char_count++;
+      prev_char_newline = 0;
+      // Resize buffer size if too full
+      if (i >= INIT_PROFILE_CHAR_LEN - 1) {
+        buffer = reallocf(buffer, sizeof(buffer) * 2);
+        check_allocation(buffer);
+      }
+      buffer[i] = c;
+      i++;
+      profile_length++;
+      if (profile_length > mtC_p->maxWidth) {
+        mtC_p->maxWidth = profile_length;
+      }
+      c = getc(f);
     }
   }
   fclose(f);
@@ -152,6 +222,17 @@ void loadConfig(mtConfig* config) {
 
   // Read config
   FILE* f = fopen(CONFIG_LOCATION, "rb");
+  if (!f) {
+    char* error_message = "ERROR: unable to open configuration file ";
+    int space = strlen(error_message) + strlen(CONFIG_LOCATION) + 1;
+    char error_string[space];
+    strlcpy(error_string, error_message, space);
+    if (safe_strcat(error_string, CONFIG_LOCATION)) {
+      exit_prog(EXIT_FAILURE, error_string);
+    } else {
+      exit_prog(EXIT_FAILURE, error_message);
+    }
+  }
   char key[MAX_LINE_LENGTH];
   int value;
   fscanf(f, "%s %i\n", &key[0], &value); // TODO: unsafe; fix
@@ -171,7 +252,7 @@ void exit_prog(int status, char* status_string) {
   delete_windows();
   endwin();
   if (status_string) {
-    printf("%s", status_string);
+    printf("%s\n", status_string);
   }
   exit(status);
 }

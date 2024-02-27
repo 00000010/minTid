@@ -6,10 +6,10 @@ progName := minTid
 all: $(progName)
 
 $(progName): *.o
-	$(CC) $^ $(CFLAGS) -o $@
+	$(CC) $^ $(CFLAGS) -o ./build/$@
 
 %.o: %.c
 	$(CC) -c $^
 
 clean:
-	echo $(progName) 
+	cd ./build/ && ls

@@ -3,9 +3,12 @@
 // Constants
 int MAX_ERROR_STRING_LEN = 100;
 int MAX_CHAR_BAR_INPUT = 255;
+int INIT_PROFILE_CHAR_LEN = 20;
+int PROFILE_OUTPUT_DIM = 30;
 int MAX_LINE_LENGTH = 50;
 int BAR_OUTPUT_X = 2;
 int BAR_OUTPUT_Y = 2;
+//char* CONFIG_LOCATION = "./config/config.txt";
 char* CONFIG_LOCATION = "./config/config.txt";
 char* ART_LOCATION = "./config/asciiart.txt";
 int DEFAULT_MTCHOSENCHAR = -1;
@@ -27,10 +30,11 @@ typedef struct {
   time_t lastCheckin;
 }mtConfig;
 
-typedef struct {
+typedef struct mtChar {
   char* piece;
   struct mtChar* next;
   int maxWidth;
+  int maxHeight;
 }mtChar;
 
 #endif
