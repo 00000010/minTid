@@ -27,15 +27,31 @@ void print_bar_win(WINDOW* bar_win, char* string, int expect_input) {
   return; 
 }
 
+/// Calculate the amount of space above the profile in a square space of output_dim so it is centered vertically
+/// Top affinity when odd
+int calculate_profile_top_space(int height, int output_dim) {
+  return output_dim / 2 - height / 2;
+}
+
+/// Calculate the amount of space to the left of the profile in a square space of output_dim so it is centered horizontally
+/// Left affinity when odd
+int calculate_profile_left_space(int width, int output_dim) {
+  return output_dim / 2 - width / 2;
+}
+
+/// Counts the number of characters needed to represent a profile piece centered in a square with output_dim as the dimension. Does not include the null character terminating a string
 int calculate_profile_char_count(int profile_char_count, int width, int height, int output_dim) {
   int count = 0;
-  count = output_dim / 2 - height / 2;
-  count += (output_dim / 2 + width / 2) * height;
+  count = calculate_profile_top_space(width, output_dim);              // Add space above profile
+  count += (calculate_profile_left_space(width, output_dim)) * height; // Add space to left of profile
+  count += profile_char_count;                                         // Add profile character count
   return count;
 }
 
-// Concatenates src_string to dest_string if safe
-// Does not truncate if failed
+/// Concatenates src_string to dest_string if safe
+/// If failed, does not change dest_string and src_string
+/// dest_string should be stack-allocated
+// TODO: check logic (sizeof)
 int safe_strcat(char* dest_string, char* src_string) {
   int valid = 0;
   if (strlen(src_string) + 1 <= sizeof(dest_string) - strlen(dest_string)) {
@@ -45,11 +61,30 @@ int safe_strcat(char* dest_string, char* src_string) {
   return valid;
 }
 
-char* create_piece_from_buffer(char* buffer, int profile_char_count, int width, int height, int output_dim) {
-  char* piece = malloc(calculate_profile_char_count(profile_char_count, width, height, output_dim));
-  for (int i = 0; i < height; i++) {
-    strcpy(piece, "\n");
+/// Create string of profile with profile_char_count size with width and height, in a square space of output_dim dimension
+char* create_piece_from_buffer(char* profile, int profile_char_count, int width, int height, int output_dim) {
+  int piece_total_len = calculate_profile_char_count(profile_char_count, width, height, output_dim) + 1;
+  char* piece = malloc(piece_total_len);
+  int top_spacer_count = output_dim / 2 - height / 2;
+  int left_spacer_count = output_dim / 2 - width / 2;
+  int line_count = 0;
+  // Create top space above profile
+  for (int i = 0; i < top_spacer_count; i++) {
+    piece[i] = '\n';
   }
+  // Create rest of profile, with space to left of profile
+  for (int i = 0; i < profile_char_count; i++) {
+    // Create left space for current line
+    if ((i == 0) || (profile[i - 1] == '\n')) {
+      for (int j = 0; j < left_spacer_count; j++) {
+        piece[top_spacer_count + left_spacer_count * line_count + i + j] = ' ';
+      }
+      line_count++;
+    }
+    // Create rest of profile for current line
+    piece[top_spacer_count + left_spacer_count * line_count + i] = profile[i];
+  }
+  piece[piece_total_len - 1] = '\0'; // Add null character at end
   return piece;
 }
 
@@ -223,15 +258,7 @@ void loadConfig(mtConfig* config) {
   // Read config
   FILE* f = fopen(CONFIG_LOCATION, "rb");
   if (!f) {
-    char* error_message = "ERROR: unable to open configuration file ";
-    int space = strlen(error_message) + strlen(CONFIG_LOCATION) + 1;
-    char error_string[space];
-    strlcpy(error_string, error_message, space);
-    if (safe_strcat(error_string, CONFIG_LOCATION)) {
-      exit_prog(EXIT_FAILURE, error_string);
-    } else {
-      exit_prog(EXIT_FAILURE, error_message);
-    }
+    exit_prog(EXIT_FAILURE, "ERROR: unable to open configuration file ", CONFIG_LOCATION);
   }
   char key[MAX_LINE_LENGTH];
   int value;
@@ -248,11 +275,15 @@ void loadConfig(mtConfig* config) {
   fclose(f);
 }
 
-void exit_prog(int status, char* status_string) {
+// TODO: implement variable arguments?
+void exit_prog(int status, char* status_string, char* location_string) {
   delete_windows();
   endwin();
   if (status_string) {
-    printf("%s\n", status_string);
+    printf("%s", status_string);
+    if (location_string) {
+      printf("%s\n", location_string);
+    }
   }
   exit(status);
 }
@@ -310,6 +341,6 @@ int main() {
   delwin(bar_win);
   delwin(bar_text_win);
   delwin(main_win);
-  exit_prog(EXIT_SUCCESS, NULL);
+  exit_prog(EXIT_SUCCESS, NULL, NULL);
   return 0;
 }
