@@ -12,4 +12,5 @@ $(progName): *.o
 	$(CC) -c $^
 
 clean:
-	cd ./build/ && ls
+	rm *.o
+	cd ./build && rm minTid

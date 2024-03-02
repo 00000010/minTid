@@ -1,3 +1,4 @@
+// TODO: switch_to_snake_case
 #include <curses.h>
 #include <locale.h>
 #include <stdlib.h>
@@ -19,6 +20,10 @@ WINDOW* create_bar_text_win() {
   return show_win(1, COLS - 2, LINES - 2, 1);
 }
 
+int profiles_per_line(int scr_width, int max_profile_width) {
+  return scr_width / (max_profile_width + 2);
+}
+
 /// Print text in the bar
 void print_bar_win(WINDOW* bar_win, char* string, int expect_input) {
   wclear(bar_win);
@@ -30,7 +35,7 @@ void print_bar_win(WINDOW* bar_win, char* string, int expect_input) {
 /// Calculate the amount of space above the profile in a square space of output_dim so it is centered vertically
 /// Top affinity when odd
 int calculate_profile_top_space(int height, int output_dim) {
-  return output_dim / 2 - height / 2;
+  return output_dim / 4 - height / 2;
 }
 
 /// Calculate the amount of space to the left of the profile in a square space of output_dim so it is centered horizontally
@@ -39,10 +44,10 @@ int calculate_profile_left_space(int width, int output_dim) {
   return output_dim / 2 - width / 2;
 }
 
-/// Counts the number of characters needed to represent a profile piece centered in a square with output_dim as the dimension. Does not include the null character terminating a string
+/// Counts the number of characters needed to represent a profile piece containing profile_char_count number of characters (including newlines, but not termininating NULL) centered in a square with output_dim as the dimension. Does not include the null character terminating a string
 int calculate_profile_char_count(int profile_char_count, int width, int height, int output_dim) {
   int count = 0;
-  count = calculate_profile_top_space(width, output_dim);              // Add space above profile
+  count = calculate_profile_top_space(height, output_dim);              // Add space above profile
   count += (calculate_profile_left_space(width, output_dim)) * height; // Add space to left of profile
   count += profile_char_count;                                         // Add profile character count
   return count;
@@ -61,28 +66,31 @@ int safe_strcat(char* dest_string, char* src_string) {
   return valid;
 }
 
-/// Create string of profile with profile_char_count size with width and height, in a square space of output_dim dimension
-char* create_piece_from_buffer(char* profile, int profile_char_count, int width, int height, int output_dim) {
-  int piece_total_len = calculate_profile_char_count(profile_char_count, width, height, output_dim) + 1;
+/// Create string of profile with width and height, in a square space of output_dim dimension
+char* create_piece_from_buffer(char* buffer, int width, int height, int output_dim) {
+  int buffer_len = strlen(buffer);
+  int piece_total_len = calculate_profile_char_count(buffer_len, width, height, output_dim) + 1; // strlen of piece + 1 for \0
   char* piece = malloc(piece_total_len);
-  int top_spacer_count = output_dim / 2 - height / 2;
+  check_allocation(piece);
+  int top_spacer_count = calculate_profile_top_space(height, output_dim);
   int left_spacer_count = output_dim / 2 - width / 2;
   int line_count = 0;
+
   // Create top space above profile
   for (int i = 0; i < top_spacer_count; i++) {
     piece[i] = '\n';
   }
   // Create rest of profile, with space to left of profile
-  for (int i = 0; i < profile_char_count; i++) {
+  for (int i = 0; i < buffer_len; i++) {
     // Create left space for current line
-    if ((i == 0) || (profile[i - 1] == '\n')) {
+    if ((i == 0) || (buffer[i - 1] == '\n')) {
       for (int j = 0; j < left_spacer_count; j++) {
         piece[top_spacer_count + left_spacer_count * line_count + i + j] = ' ';
       }
       line_count++;
     }
     // Create rest of profile for current line
-    piece[top_spacer_count + left_spacer_count * line_count + i] = profile[i];
+    piece[top_spacer_count + left_spacer_count * line_count + i] = buffer[i];
   }
   piece[piece_total_len - 1] = '\0'; // Add null character at end
   return piece;
@@ -90,111 +98,90 @@ char* create_piece_from_buffer(char* profile, int profile_char_count, int width,
 
 void check_allocation(void* allocation) {
   if (!allocation) {
-    exit_prog(EXIT_FAILURE, "ERROR: unable to allocate memory");
+    exit_prog(EXIT_FAILURE, "ERROR: unable to allocate memory", NULL);
   }
   return;
 }
 
-char* get_mtChar_art() {
+void initialize_mtChar(mtChar** mtC) {
+  *mtC = malloc(sizeof(mtChar));
+  check_allocation(*mtC);
+  (*mtC)->piece = NULL;
+  (*mtC)->maxWidth = 0;
+  (*mtC)->maxHeight = 0;
+  (*mtC)->next = NULL;
+  return;
+}
+
+mtChar* get_mtChar_art() {
   FILE* f = fopen(ART_LOCATION, "rb");
   if (!f) {
-    char* error_message = "ERROR: unable to open ascii art file ";
-    int space = strlen(error_message) + strlen(ART_LOCATION) + 1;
-    char error_string[space];
-    strlcpy(error_string, error_message, space);
-    if (safe_strcat(error_string, ART_LOCATION)) {
-      exit_prog(EXIT_FAILURE, error_string);
-    } else {
-      exit_prog(EXIT_FAILURE, error_message);
-    }
+    exit_prog(EXIT_FAILURE, "ERROR: unable to open ascii art file ", ART_LOCATION);
   }
+  int buffer_len = INIT_PROFILE_CHAR_LEN;
   char* buffer = malloc(INIT_PROFILE_CHAR_LEN);
-  mtChar* mtC = malloc(sizeof(mtChar));
-  check_allocation(mtC);
+  check_allocation(buffer);
+  mtChar* mtC;
+  initialize_mtChar(&mtC);
 
   char c = getc(f);
-  int profile_length = 0;
-  int profile_height = 0;
   int i = 0;
-  int prev_char_newline = 0;
-  int profile_char_count = 0;
+  int line_length = 0;
   mtChar* mtC_p = mtC;
-  mtC_p->maxWidth = 0;
-  mtC_p->maxHeight = 0;
-  mtC_p->next = NULL;
+  int getting_profile = 1;
   while (c != EOF) {
     while (c == '\n') {
-      if (i == 0) {
-        c = getc(f);
-        continue;
-      }
-      if (!prev_char_newline) {
-        mtC_p->maxHeight++;
-        prev_char_newline = 1;
-      } else {
-        i = 0;
-        mtC_p->maxHeight--;
-        mtC_p->piece = create_piece_from_buffer(buffer, profile_char_count, mtC_p->maxWidth, mtC_p->maxHeight, PROFILE_OUTPUT_DIM);
-//        mtC_p->piece = buffer; // TODO: wrong; position line_buffer correctly in piece
-        mtC_p->next = malloc(sizeof(mtChar));
-        mtC_p = mtC_p->next;
-        mtC_p->maxWidth = 0;
-        mtC_p->maxHeight = 0;
-        profile_char_count = 0;
-      }
+      c = getc(f);
     }
-    if (c != EOF) {
-      profile_char_count++;
-      prev_char_newline = 0;
-      // Resize buffer size if too full
-      if (i >= INIT_PROFILE_CHAR_LEN - 1) {
-        buffer = reallocf(buffer, sizeof(buffer) * 2);
+    getting_profile = 1;
+    while (getting_profile) {
+      // Resize buffer if needs more space
+      if (i >= buffer_len - 1) {
+        buffer = realloc(buffer, buffer_len * 2);
+        buffer_len = buffer_len * 2;
         check_allocation(buffer);
       }
       buffer[i] = c;
       i++;
-      profile_length++;
-      if (profile_length > mtC_p->maxWidth) {
-        mtC_p->maxWidth = profile_length;
+      line_length++;
+      if (c == '\n') {
+        mtC_p->maxHeight++;
+        if (line_length > mtC_p->maxWidth) {
+          mtC_p->maxWidth = line_length - 1;
+        }
+        line_length = 0;
+        if ((c = getc(f)) == '\n') {
+          buffer[i - 1] = '\0';
+          mtC_p->piece = create_piece_from_buffer(buffer, mtC_p->maxWidth, mtC_p->maxHeight, PROFILE_OUTPUT_DIM);
+          initialize_mtChar(&(mtC_p->next));
+          mtC_p = mtC_p->next;
+          i = 0;
+          getting_profile = 0;
+          continue;
+        }
+      } else {
+        c = getc(f);
+        if (c == EOF) {
+          buffer[i - 1] = '\0';
+          mtC_p->piece = create_piece_from_buffer(buffer, mtC_p->maxWidth, mtC_p->maxHeight, PROFILE_OUTPUT_DIM);
+          initialize_mtChar(&(mtC_p->next));
+          mtC_p = mtC_p->next;
+          getting_profile = 0; // TODO: maybe not necessary
+          break;
+        }
       }
-      c = getc(f);
     }
   }
   fclose(f);
-  return buffer;
+  free(buffer);
+  return mtC;
 }
 
 void show_mtChars() {
   long length;
   mvprintw(1, 1, "Welcome to minTid! It looks like this is your first time here. Select your maître d'hôtel to get started.\n");
 
-  char* art_buffer = get_mtChar_art();
-//  if (f) {
-//    int seek_err = fseek(f, 0, SEEK_END);
-//    // TODO: Error validation
-////    if (seek_err) {
-////
-////    }
-//    length = ftell(f);
-//    // TODO: Error validation
-//    fseek(f, 0, SEEK_SET);
-//    buffer = malloc(length + 1);
-//    if (buffer) {
-//      // TODO: Error validation
-//      fread(buffer, 1, length, f);
-//    }
-//    fclose(f);
-//  }
-//  if (art_buffer) {
-//    char c = art_buffer[0];
-//     while (c) {
-//       char* character_art = 
-//     }
-//     while (read > 1) {
-//       wprintw(w, "First char: %.256s", &(buffer[]));
-//       wrefresh(w);
-//     }
-//  }
+  mtChar* mtChars = get_mtChar_art();
   return;
 }
 
@@ -216,7 +203,7 @@ void handle_char(char c, WINDOW* bar_win) {
       response = wgetch(bar_win);
       if (response == 'Y' || response == 'y') {
         destroy_win(bar_win, 0); // TODO: memory leak; destroy other windows too
-        exit_prog(EXIT_SUCCESS, NULL);
+        exit_prog(EXIT_SUCCESS, NULL, NULL);
       }
       break;
     }
@@ -283,6 +270,8 @@ void exit_prog(int status, char* status_string, char* location_string) {
     printf("%s", status_string);
     if (location_string) {
       printf("%s\n", location_string);
+    } else {
+      printf("\n");
     }
   }
   exit(status);
@@ -302,6 +291,7 @@ int main() {
   curs_set(0); // Make cursor invisible (for now)
 
   mtConfig* config = malloc(sizeof(mtConfig));
+  check_allocation(config);
   loadConfig(config);
 
   if (config->mtChosenChar == -1) {

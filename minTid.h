@@ -3,6 +3,8 @@
 // Constants
 int MAX_ERROR_STRING_LEN = 100;
 int MAX_CHAR_BAR_INPUT = 255;
+int CHAR_WIDTH = 14;
+int CHAR_HEIGHT = 28;
 int INIT_PROFILE_CHAR_LEN = 20;
 int PROFILE_OUTPUT_DIM = 30;
 int MAX_LINE_LENGTH = 50;
@@ -23,7 +25,8 @@ void pick_character();
 void handle_char(char c, WINDOW* bar_win);
 void destroy_win(WINDOW *win, int clear_window);
 WINDOW* show_win(int nlines, int ncols, int begin_y, int begin_x);
-void exit_prog();
+void check_allocation(void* allocation);
+void exit_prog(int status, char* status_string, char* location_string);
 
 typedef struct {
   int mtChosenChar;
